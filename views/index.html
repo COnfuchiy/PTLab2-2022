@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Товары</title>
+</head>
+<body>
+    <div>
+        <h3>Список</h3>
+        <table>
+            <tr>
+                <td><p>Наименование</p></td>
+                <td><p>Цена</p></td>
+                <td></td>
+            </tr>
+            {{ range .products }}
+                <tr>
+                    <td><p>{{ .Name }}</p></td>
+                    <td><p>{{ .Price }}</p></td>
+                    <td><p><a href="/buy/{{ .ID }}/">Купить</a></p></td>
+                </tr>
+            {{ end }}
+        </table>
+        <div style="display: flex">
+            {{ if ne .currentPage 1 }}
+            <div ><a href="/?page=1"><<</a></div>
+            <div class="pagination" ><a href="/?page={{ sub .currentPage 1 }}"><</a></div>
+            {{end}}
+            {{.currentPage}}
+            {{ if ne .currentPage .totalPagesCount }}
+            <div class="pagination" ><a href="/?page={{ add .currentPage 1  }}">></a></div>
+            <div ><a href="/?page={{.totalPagesCount}}">>></a></div>
+            {{end}}
+        </div>
+
+    </div>
+</body>
+</html>
+<style>
+    .pagination{
+        margin: 0 15px  0 15px;
+    }
+</style>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width" />
+  <title>Покупка</title>
+</head>
+<body>
+<div>
+  <h3>Покупка</h3>
+  {{if .errors}}
+        {{range .errors}}
+          <p>{{.}}</p>
+        {{end}}
+  {{end}}
+  <form method="post">
+    <input type="hidden" value="{{ .productId }}" name="ProductId" />
+    <table>
+      <tr>
+        <td><p>Введите свое имя </p></td>
+        <td><input type="text" name="Person" value="{{if .person}}{{.person}}{{else}}{{end}}"/> </td>
+      </tr>
+      <tr>
+        <td><p>Введите адрес доставки:</p></td>
+        <td>
+          <input type="text" name="Address" value="{{if .address}}{{.address}}{{else}}{{end}}"/>
+        </td>
+      </tr>
+      <tr><td><input type="submit" value="Отправить" /> </td><td></td></tr>
+    </table>
+  </form>
+</div>
+</body>
+</html>
