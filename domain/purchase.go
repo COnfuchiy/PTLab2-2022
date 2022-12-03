@@ -1,19 +1,18 @@
 package domain
 
-import (
-	"time"
-)
-
 type Purchase struct {
-	ID        uint   `gorm:"primarykey" json:"id"`
+	ID        uint   `gorm:"primarykey"`
 	Person    string `json:"person"`
 	Address   string `json:"address"`
 	Price     uint   `json:"price"`
-	CreatedAt time.Time
-	ProductID uint `json:"product_id"`
+	ProductID uint
 	Product   Product
 }
 
-type PurchaseRepository interface {
+type IPurchaseRepository interface {
 	InsertPurchase(purchase *Purchase) error
+}
+
+type IPurchaseService interface {
+	CreatePurchase(purchase *Purchase) error
 }

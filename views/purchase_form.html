@@ -9,7 +9,7 @@
   <h3>Покупка</h3>
   {{if .errors}}
         {{range .errors}}
-          <p>{{.}}</p>
+          <p class="error">{{.}}</p>
         {{end}}
   {{end}}
   <form method="post">

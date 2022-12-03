@@ -1,21 +1,14 @@
 package main
 
 import (
-	"LAB2/actions"
-	"LAB2/controllers"
 	"LAB2/infrastructure/db"
-	"LAB2/repository"
-	"fmt"
+	"LAB2/interface/controllers"
+	"LAB2/interface/repository"
+	"LAB2/services"
+	"LAB2/views"
 	"github.com/gin-gonic/gin"
 	"html/template"
 )
-
-func Add(firstNum, secondNum int) string {
-	return fmt.Sprintf("%d", firstNum+secondNum)
-}
-func Sub(firstNum, secondNum int) string {
-	return fmt.Sprintf("%d", firstNum-secondNum)
-}
 
 type App struct {
 	dbHandler          *db.DatabaseHandler
@@ -30,8 +23,7 @@ func NewApp() *App {
 	if err != nil {
 		return nil
 	}
-	app.setupProductController()
-	app.setupPurchaseController()
+	app.setupControllers()
 	app.setupServer()
 	app.setupRoutes()
 	return &app
@@ -41,16 +33,13 @@ func (app *App) startApp() error {
 	return app.ginHandler.Run()
 }
 
-func (app *App) setupProductController() {
-	productRepository := repository.NewProductDatabaseRepository(app.dbHandler)
-	productInteractor := actions.NewProductInteractor(productRepository)
-	app.productController = controllers.NewProductController(productInteractor)
-}
-
-func (app *App) setupPurchaseController() {
-	purchaseRepository := repository.NewPurchaseDatabaseRepository(app.dbHandler)
-	purchaseInteractor := actions.NewPurchaseInteractor(purchaseRepository)
-	app.purchaseController = controllers.NewPurchaseController(purchaseInteractor, app.productController.ProductInteractor)
+func (app *App) setupControllers() {
+	productRepository := repository.NewProductRepository(app.dbHandler)
+	purchaseRepository := repository.NewPurchaseRepository(app.dbHandler)
+	productService := services.NewProductService(productRepository)
+	purchaseService := services.NewPurchaseService(purchaseRepository)
+	app.productController = controllers.NewProductController(productService)
+	app.purchaseController = controllers.NewPurchaseController(purchaseService, productService)
 }
 
 func (app *App) setupDatabase() error {
@@ -65,8 +54,8 @@ func (app *App) setupDatabase() error {
 func (app *App) setupServer() {
 	app.ginHandler = gin.Default()
 	app.ginHandler.SetFuncMap(template.FuncMap{
-		"add": Add,
-		"sub": Sub,
+		"add": views.Add,
+		"sub": views.Sub,
 	})
 	app.ginHandler.LoadHTMLGlob("views/*")
 }

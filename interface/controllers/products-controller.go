@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"LAB2/actions"
+	"LAB2/domain"
 	"github.com/gin-gonic/gin"
 	"math"
 	"net/http"
@@ -9,12 +9,12 @@ import (
 )
 
 type ProductController struct {
-	ProductInteractor actions.ProductInteractor
-	DefaultPageSize   int
+	productService  domain.IProductService
+	defaultPageSize int
 }
 
-func NewProductController(productInteractor actions.ProductInteractor) *ProductController {
-	return &ProductController{productInteractor, 10}
+func NewProductController(productService domain.IProductService) *ProductController {
+	return &ProductController{productService, 10}
 }
 
 func (controller ProductController) GetProducts(c *gin.Context) {
@@ -25,17 +25,19 @@ func (controller ProductController) GetProducts(c *gin.Context) {
 			currentPage = int(pageNum)
 		}
 	}
-	totalCount, err := controller.ProductInteractor.CountProducts()
+	totalCount, err := controller.productService.GetProductsCount()
 	if err != nil {
 		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(err.Error()))
+		return
 	}
-	totalPagesCount := int(math.Ceil(float64(totalCount) / float64(controller.DefaultPageSize)))
+	totalPagesCount := int(math.Ceil(float64(totalCount) / float64(controller.defaultPageSize)))
 	if currentPage > totalCount {
 		currentPage = totalPagesCount
 	}
-	products, err := controller.ProductInteractor.FindProductsByPagination(currentPage, controller.DefaultPageSize)
+	products, err := controller.productService.GetProducts(currentPage, controller.defaultPageSize)
 	if err != nil {
 		c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(err.Error()))
+		return
 	}
 	c.HTML(http.StatusOK, "index.html", gin.H{
 		"products":        products,

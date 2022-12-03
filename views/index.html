@@ -14,7 +14,7 @@
                 <td></td>
             </tr>
             {{ range .products }}
-                <tr>
+                <tr class="product">
                     <td><p>{{ .Name }}</p></td>
                     <td><p>{{ .Price }}</p></td>
                     <td><p><a href="/buy/{{ .ID }}/">Купить</a></p></td>
@@ -23,13 +23,13 @@
         </table>
         <div style="display: flex">
             {{ if ne .currentPage 1 }}
-            <div ><a href="/?page=1"><<</a></div>
-            <div class="pagination" ><a href="/?page={{ sub .currentPage 1 }}"><</a></div>
+            <div ><a href="/?page=1" class="first-page"><<</a></div>
+            <div class="pagination" ><a href="/?page={{ sub .currentPage 1 }}" class="prev-page"><</a></div>
             {{end}}
-            {{.currentPage}}
+            <span class="current-page">{{.currentPage}}</span>
             {{ if ne .currentPage .totalPagesCount }}
-            <div class="pagination" ><a href="/?page={{ add .currentPage 1  }}">></a></div>
-            <div ><a href="/?page={{.totalPagesCount}}">>></a></div>
+            <div class="pagination" ><a href="/?page={{ add .currentPage 1  }}" class="next-page" >></a></div>
+            <div ><a href="/?page={{.totalPagesCount}}" class="last-page">>></a></div>
             {{end}}
         </div>
 

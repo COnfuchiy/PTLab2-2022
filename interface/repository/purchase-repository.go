@@ -4,16 +4,16 @@ import (
 	"LAB2/domain"
 )
 
-type PurchaseDatabaseRepository struct {
+type PurchaseRepository struct {
 	DBHandler DatabaseHandler
 }
 
-func NewPurchaseDatabaseRepository(handler DatabaseHandler) PurchaseDatabaseRepository {
-	return PurchaseDatabaseRepository{handler}
+func NewPurchaseRepository(handler DatabaseHandler) PurchaseRepository {
+	return PurchaseRepository{handler}
 }
 
-func (databaseRepository PurchaseDatabaseRepository) InsertPurchase(purchase *domain.Purchase) error {
-	err := databaseRepository.DBHandler.InsertPurchase(purchase)
+func (repository PurchaseRepository) InsertPurchase(purchase *domain.Purchase) error {
+	err := repository.DBHandler.InsertPurchase(purchase)
 	if err != nil {
 		return err
 	}

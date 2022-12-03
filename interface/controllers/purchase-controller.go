@@ -1,17 +1,15 @@
 package controllers
 
 import (
-	"LAB2/actions"
 	"LAB2/domain"
 	"github.com/gin-gonic/gin"
 	"net/http"
-	"strconv"
 )
 
 type PurchaseController struct {
-	purchaseInteractor actions.PurchaseInteractor
-	productInteractor  actions.ProductInteractor
-	purchaseHtmlForm   string
+	purchaseService  domain.IPurchaseService
+	productService   domain.IProductService
+	purchaseHtmlForm string
 }
 
 type CreatePurchaseInput struct {
@@ -20,11 +18,11 @@ type CreatePurchaseInput struct {
 	Address   string `json:"address" binding:"required"`
 }
 
-func NewPurchaseController(purchaseInteractor actions.PurchaseInteractor,
-	productInteractor actions.ProductInteractor) *PurchaseController {
+func NewPurchaseController(purchaseService domain.IPurchaseService,
+	productService domain.IProductService) *PurchaseController {
 	return &PurchaseController{
-		purchaseInteractor,
-		productInteractor,
+		purchaseService,
+		productService,
 		"purchase_form.html",
 	}
 }
@@ -49,18 +47,12 @@ func (controller PurchaseController) viewErrorForm(c *gin.Context, input CreateP
 
 func (controller PurchaseController) CreatePurchase(c *gin.Context) {
 	var input CreatePurchaseInput
-	id, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		controller.viewErrorForm(c, input, "такой продукт отсутсвует в продаже")
-		return
-	}
 
 	if err := c.Bind(&input); err != nil {
-		controller.viewErrorForm(c, input, "ошибка обработки полей формы ("+err.Error()+") ")
+		controller.viewErrorForm(c, input, "ошибка обработки полей формы ("+err.Error()+")")
 		return
 	}
-
-	product, err := controller.productInteractor.FindProductById(uint(id))
+	product, err := controller.productService.GetProductById(input.ProductId)
 	if err != nil {
 		controller.viewErrorForm(c, input, err.Error())
 		return
@@ -78,7 +70,7 @@ func (controller PurchaseController) CreatePurchase(c *gin.Context) {
 		ProductID: input.ProductId,
 	}
 
-	err = controller.purchaseInteractor.Insert(&purchase)
+	err = controller.purchaseService.CreatePurchase(&purchase)
 	if err != nil {
 		controller.viewErrorForm(c, input, err.Error())
 		return
