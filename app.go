@@ -11,7 +11,7 @@ import (
 )
 
 type App struct {
-	dbHandler          *db.DatabaseHandler
+	dbHandler          *repository.IDatabaseHandler
 	ginHandler         *gin.Engine
 	productController  *controllers.ProductController
 	purchaseController *controllers.PurchaseController
@@ -34,12 +34,14 @@ func (app *App) startApp() error {
 }
 
 func (app *App) setupControllers() {
-	productRepository := repository.NewProductRepository(app.dbHandler)
-	purchaseRepository := repository.NewPurchaseRepository(app.dbHandler)
+	productRepository := repository.NewProductRepository(*app.dbHandler)
+	purchaseRepository := repository.NewPurchaseRepository(*app.dbHandler)
+	discountRepository := repository.NewDiscountRepository(*app.dbHandler)
 	productService := services.NewProductService(productRepository)
 	purchaseService := services.NewPurchaseService(purchaseRepository)
-	app.productController = controllers.NewProductController(productService)
-	app.purchaseController = controllers.NewPurchaseController(purchaseService, productService)
+	discountService := services.NewDiscountService(discountRepository)
+	app.productController = controllers.NewProductController(productService, discountService)
+	app.purchaseController = controllers.NewPurchaseController(purchaseService, productService, discountService)
 }
 
 func (app *App) setupDatabase() error {
@@ -47,15 +49,16 @@ func (app *App) setupDatabase() error {
 	if err != nil {
 		return err
 	}
-	app.dbHandler = dbHandler
+	app.dbHandler = &dbHandler
 	return nil
 }
 
 func (app *App) setupServer() {
 	app.ginHandler = gin.Default()
 	app.ginHandler.SetFuncMap(template.FuncMap{
-		"add": views.Add,
-		"sub": views.Sub,
+		"add":       views.Add,
+		"sub":       views.Sub,
+		"printDate": views.PrintDate,
 	})
 	app.ginHandler.LoadHTMLGlob("views/*")
 }

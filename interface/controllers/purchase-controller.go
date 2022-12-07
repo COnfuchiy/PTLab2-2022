@@ -9,6 +9,7 @@ import (
 type PurchaseController struct {
 	purchaseService  domain.IPurchaseService
 	productService   domain.IProductService
+	discountService  domain.IDiscountService
 	purchaseHtmlForm string
 }
 
@@ -19,10 +20,11 @@ type CreatePurchaseInput struct {
 }
 
 func NewPurchaseController(purchaseService domain.IPurchaseService,
-	productService domain.IProductService) *PurchaseController {
+	productService domain.IProductService, discountService domain.IDiscountService) *PurchaseController {
 	return &PurchaseController{
 		purchaseService,
 		productService,
+		discountService,
 		"purchase_form.html",
 	}
 }
@@ -41,7 +43,7 @@ func (controller PurchaseController) viewErrorForm(c *gin.Context, input CreateP
 	c.HTML(http.StatusBadRequest, controller.purchaseHtmlForm, gin.H{
 		"productId": input.ProductId,
 		"person":    input.Person,
-		"errors":    []string{"Ошибка при работе с формой: " + message + "!"},
+		"errors":    []string{"Ошибка: " + message + "!"},
 	})
 }
 
@@ -66,7 +68,7 @@ func (controller PurchaseController) CreatePurchase(c *gin.Context) {
 	purchase := domain.Purchase{
 		Person:    input.Person,
 		Address:   input.Address,
-		Price:     product.Price,
+		Price:     controller.discountService.GetPriceWithDiscount(product.Price, product.Discount.Percent),
 		ProductID: input.ProductId,
 	}
 
@@ -74,6 +76,27 @@ func (controller PurchaseController) CreatePurchase(c *gin.Context) {
 	if err != nil {
 		controller.viewErrorForm(c, input, err.Error())
 		return
+	}
+
+	err = controller.productService.DecreaseProductCount(product)
+	if err != nil {
+		controller.viewErrorForm(c, input, err.Error())
+		return
+	}
+
+	isNeedDiscount, err := controller.purchaseService.CheckProductWillHaveDiscount(product)
+	if err != nil {
+		controller.viewErrorForm(c, input, err.Error())
+		return
+	}
+
+	if isNeedDiscount {
+		discount := domain.NewDefaultDiscount(product.ID)
+		err = controller.discountService.CreateDiscount(&discount)
+		if err != nil {
+			controller.viewErrorForm(c, input, err.Error())
+			return
+		}
 	}
 
 	c.Data(http.StatusOK,

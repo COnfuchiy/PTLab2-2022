@@ -5,17 +5,17 @@ import (
 )
 
 type PurchaseRepository struct {
-	DBHandler DatabaseHandler
+	DBHandler IDatabaseHandler
 }
 
-func NewPurchaseRepository(handler DatabaseHandler) PurchaseRepository {
+func NewPurchaseRepository(handler IDatabaseHandler) domain.IPurchaseRepository {
 	return PurchaseRepository{handler}
 }
 
 func (repository PurchaseRepository) InsertPurchase(purchase *domain.Purchase) error {
-	err := repository.DBHandler.InsertPurchase(purchase)
-	if err != nil {
-		return err
-	}
-	return nil
+	return repository.DBHandler.InsertPurchase(purchase)
+}
+
+func (repository PurchaseRepository) CountPurchasesByProductId(productId uint) (int, error) {
+	return repository.DBHandler.CountPurchasesByProductId(productId)
 }

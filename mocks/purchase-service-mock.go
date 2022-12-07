@@ -17,3 +17,13 @@ func (mock *MockPurchaseService) CreatePurchase(purchase *domain.Purchase) error
 	}
 	return err
 }
+
+func (mock *MockPurchaseService) CheckProductWillHaveDiscount(product *domain.Product) (bool, error) {
+	args := mock.Called(product)
+	productWillHaveDiscount := args.Bool(0)
+	var err error
+	if args.Get(1) != nil {
+		err = args.Get(1).(error)
+	}
+	return productWillHaveDiscount, err
+}
