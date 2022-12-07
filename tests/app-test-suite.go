@@ -20,6 +20,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type AppTestSuite struct {
@@ -28,6 +29,7 @@ type AppTestSuite struct {
 	purchase            domain.Purchase
 	mockProductService  *mocks.MockProductService
 	mockPurchaseService *mocks.MockPurchaseService
+	mockDiscountService *mocks.MockDiscountService
 	ginHandler          *gin.Engine
 	totalProductsCount  int
 	productPerPage      int
@@ -46,60 +48,107 @@ func (suite *AppTestSuite) SetupSuite() {
 	suite.pagesToTest = []int{
 		1, 2, totalPagesCount,
 	}
+
+	suite.mockDiscountService = new(mocks.MockDiscountService)
+
 	suite.products = []domain.Product{
 		{
 			ID:    1,
 			Name:  "Pivo",
+			Count: 1000,
 			Price: 100,
+			Discount: domain.Discount{
+				ID:        1,
+				Percent:   15,
+				EndDate:   time.Now().AddDate(0, 0, -14),
+				ProductID: 1,
+			},
+		}, {
+			ID:    2,
+			Name:  "Pivo",
+			Count: 1000,
+			Price: 100,
+			Discount: domain.Discount{
+				ID:        2,
+				Percent:   10,
+				EndDate:   time.Now().AddDate(0, 0, 14),
+				ProductID: 2,
+			},
 		},
 	}
-	for i := 1; i < suite.totalProductsCount; i++ {
-		suite.products = append(suite.products,
-			domain.Product{
-				ID:    suite.products[i-1].ID + 1,
-				Name:  suite.products[i-1].Name,
-				Price: suite.products[i-1].Price,
-			})
+
+	for i := 2; i < suite.totalProductsCount; i++ {
+		addedProduct := domain.Product{
+			ID:       suite.products[i-1].ID + 1,
+			Name:     suite.products[i-1].Name,
+			Price:    suite.products[i-1].Price,
+			Discount: domain.Discount{},
+		}
+		suite.products = append(suite.products, addedProduct)
 	}
+
+	for _, product := range suite.products {
+		suite.mockDiscountService.
+			On("GetPriceWithDiscount", product.Price, product.Discount.Percent).
+			Return(suite.calcPriceWithDiscount(product.Price, product.Discount.Percent))
+		if product.Discount.ID != 0 && time.Now().After(product.Discount.EndDate) {
+			suite.mockDiscountService.
+				On("CheckDateOrDeleteDiscount", product.Discount).
+				Return(domain.Discount{}, nil)
+		} else {
+			suite.mockDiscountService.
+				On("CheckDateOrDeleteDiscount", product.Discount).
+				Return(product.Discount, nil)
+		}
+
+	}
+
 	suite.mockProductService = new(mocks.MockProductService)
-	suite.mockProductService.On("GetProductsCount").Return(suite.totalProductsCount, nil)
 	for _, page := range suite.pagesToTest {
 		startSlice := math.Min(float64(suite.totalProductsCount-1), float64((page-1)*suite.productPerPage))
 		endSlice := math.Min(float64(suite.totalProductsCount), startSlice+float64(suite.productPerPage))
-		suite.mockProductService.On("GetProducts", page, suite.productPerPage).Return(
+		suite.mockProductService.On("GetProducts", page).Return(
 			suite.products[int(startSlice):int(endSlice)], nil).Once()
 	}
-	suite.productController = controllers.NewProductController(suite.mockProductService)
+	suite.productController = controllers.NewProductController(suite.mockProductService, suite.mockDiscountService)
 
 	suite.purchasedProduct = suite.products[rand.Intn(len(suite.products))]
+	decreasedCountProduct := suite.purchasedProduct
+	decreasedCountProduct.Count -= 1
+
+	suite.mockProductService.
+		On("DecreaseProductCount", &suite.purchasedProduct).
+		Return(nil)
 
 	// for purchase test success and error mock GetProductById
 	suite.mockProductService.On("GetProductById",
 		suite.purchasedProduct.ID).Return(&suite.purchasedProduct, nil).Once()
 
 	suite.mockProductService.On("GetProductById",
-		suite.products[len(suite.products)-1].ID+1).Return(&domain.Product{
-		ID:    0,
-		Name:  "",
-		Price: 0,
-	}, nil)
+		suite.products[len(suite.products)-1].ID+1).Return(&domain.Product{}, nil)
 
 	suite.purchasedProductUrl = "/buy/" + fmt.Sprintf("%d", suite.purchasedProduct.ID) + "/"
 	suite.purchase = domain.Purchase{
 		Person:    "Eugeniy",
 		Address:   "Moskva",
-		Price:     suite.purchasedProduct.Price,
+		Price:     suite.calcPriceWithDiscount(suite.purchasedProduct.Price, suite.purchasedProduct.Discount.Percent),
 		ProductID: suite.purchasedProduct.ID,
 	}
 	suite.mockPurchaseService = new(mocks.MockPurchaseService)
 	suite.mockPurchaseService.On("CreatePurchase", &suite.purchase).Return(nil)
-	suite.purchaseController = controllers.NewPurchaseController(suite.mockPurchaseService, suite.mockProductService)
+	suite.mockPurchaseService.
+		On("CheckProductWillHaveDiscount", &suite.purchasedProduct).
+		Return(false, nil)
+	suite.purchaseController = controllers.NewPurchaseController(suite.mockPurchaseService,
+		suite.mockProductService,
+		suite.mockDiscountService)
 
 	suite.setupGin()
 }
 
 func (suite *AppTestSuite) TestGetProducts() {
 	for _, page := range suite.pagesToTest {
+		suite.mockProductService.On("GetPaginationInfo", page).Return(page, len(suite.pagesToTest), nil)
 		suite.Run(fmt.Sprintf("PaginationTest/Page%d", page), func() {
 			suite.testGetProductsPagination(page)
 		})
@@ -137,6 +186,16 @@ func (suite *AppTestSuite) testGetProductsPagination(page int) {
 	} else {
 		suite.Require().Zero(document.Find(".last-page").Size())
 	}
+	document.Find(".product").Each(func(i int, selection *goquery.Selection) {
+		discountText := selection.Find(".discount").First().Text()
+		if strings.Contains(discountText, "%") {
+			productPrice := selection.Find(".price").First().Text()
+			productPriceAsInt, err := strconv.Atoi(productPrice)
+			suite.Require().Nil(err)
+			product := suite.products[suite.productPerPage*(page-1)+i]
+			suite.Require().Equal(product.Price, uint(productPriceAsInt))
+		}
+	})
 }
 
 func (suite *AppTestSuite) testGetPurchaseForm() {
@@ -168,7 +227,7 @@ func (suite *AppTestSuite) testErrorProductIDCreatePurchase() {
 	responseData := suite.fetchTestRequest("POST", suite.purchasedProductUrl, strings.NewReader(postForm.Encode()))
 	document := suite.getQueryDocumentFromResponse(responseData)
 	errorText := document.Find(".error").First().Text()
-	suite.Require().Equal("Ошибка при работе с формой: такой продукт отсутсвует в продаже!", errorText)
+	suite.Require().Equal("Ошибка: такой продукт отсутсвует в продаже!", errorText)
 }
 
 func (suite *AppTestSuite) testInvalidInputCreatePurchase() {
@@ -179,7 +238,13 @@ func (suite *AppTestSuite) testInvalidInputCreatePurchase() {
 	responseData := suite.fetchTestRequest("POST", suite.purchasedProductUrl, strings.NewReader(postForm.Encode()))
 	document := suite.getQueryDocumentFromResponse(responseData)
 	errorText := document.Find(".error").First().Text()
-	suite.Require().Equal("Ошибка при работе с формой: ошибка обработки полей формы (strconv.ParseUint: parsing \""+suite.purchase.Person+"\": invalid syntax)!", errorText)
+	suite.Require().Equal("Ошибка: ошибка обработки полей формы (strconv.ParseUint: parsing \""+suite.purchase.Person+"\": invalid syntax)!", errorText)
+}
+
+func (suite *AppTestSuite) testGetProductsWithDiscount() {
+	productWithDiscount := suite.products[0]
+	productWithDiscount.Discount = domain.NewDefaultDiscount(productWithDiscount.ID)
+	//productWithDiscount.
 }
 
 func (suite *AppTestSuite) fetchTestRequest(method, url string, body io.Reader) []byte {
@@ -213,13 +278,18 @@ func (suite *AppTestSuite) getQueryDocumentFromResponse(response []byte) *goquer
 func (suite *AppTestSuite) setupGin() {
 	suite.ginHandler = gin.Default()
 	suite.ginHandler.SetFuncMap(template.FuncMap{
-		"add": views.Add,
-		"sub": views.Sub,
+		"add":       views.Add,
+		"sub":       views.Sub,
+		"printDate": views.PrintDate,
 	})
 	suite.ginHandler.LoadHTMLGlob("views/*")
 	suite.ginHandler.GET("/", suite.productController.GetProducts)
 	suite.ginHandler.GET("/buy/:id/", suite.purchaseController.GetPurchaseForm)
 	suite.ginHandler.POST("/buy/:id/", suite.purchaseController.CreatePurchase)
+}
+
+func (suite *AppTestSuite) calcPriceWithDiscount(price, percent uint) uint {
+	return uint(float64(price) * float64(100-percent) / 100.0)
 }
 
 func (suite *AppTestSuite) TearDownSuite() {

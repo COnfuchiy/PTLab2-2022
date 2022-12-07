@@ -5,33 +5,25 @@ import (
 )
 
 type ProductRepository struct {
-	DBHandler DatabaseHandler
+	DBHandler IDatabaseHandler
 }
 
-func NewProductRepository(handler DatabaseHandler) ProductRepository {
+func NewProductRepository(handler IDatabaseHandler) domain.IProductRepository {
 	return ProductRepository{handler}
 }
 
 func (repository ProductRepository) CountProducts() (int, error) {
-	productCount, err := repository.DBHandler.CountProducts()
-	if err != nil {
-		return 0, err
-	}
-	return productCount, nil
+	return repository.DBHandler.CountProducts()
 }
 
 func (repository ProductRepository) FindProductById(id uint) (*domain.Product, error) {
-	products, err := repository.DBHandler.FindProductById(id)
-	if err != nil {
-		return nil, err
-	}
-	return products, nil
+	return repository.DBHandler.FindProductById(id)
 }
 
 func (repository ProductRepository) FindProductsByPagination(page, perPage int) ([]domain.Product, error) {
-	products, err := repository.DBHandler.FindProductsByPagination(page, perPage)
-	if err != nil {
-		return nil, err
-	}
-	return products, nil
+	return repository.DBHandler.FindProductsByPagination(page, perPage)
+}
+
+func (repository ProductRepository) UpdateProduct(product *domain.Product) error {
+	return repository.DBHandler.UpdateProduct(product)
 }

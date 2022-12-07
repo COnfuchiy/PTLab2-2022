@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"log"
+	"math/rand"
 	"os"
 )
 
@@ -36,7 +37,7 @@ func NewTestDatabase() *TestDatabase {
 		log.Fatalln(res.Error)
 	}
 	testDB.DBHandler = &db.DatabaseHandler{DB: DB}
-	err = DB.AutoMigrate(&domain.Product{}, &domain.Purchase{})
+	err = DB.AutoMigrate(&domain.Product{}, &domain.Purchase{}, &domain.Discount{})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -60,6 +61,7 @@ type DatabaseHandlerTestSuite struct {
 	TestDatabaseHandler *TestDatabase
 	products            []domain.Product
 	purchase            domain.Purchase
+	discount            domain.Discount
 }
 
 func (suite *DatabaseHandlerTestSuite) SetupSuite() {
@@ -67,14 +69,17 @@ func (suite *DatabaseHandlerTestSuite) SetupSuite() {
 		{
 			ID:    1,
 			Name:  "Pivo",
+			Count: 1000,
 			Price: 100,
 		}, {
 			ID:    2,
 			Name:  "Riba",
+			Count: 1000,
 			Price: 150,
 		}, {
 			ID:    3,
 			Name:  "Myaso",
+			Count: 1000,
 			Price: 200,
 		},
 	}
@@ -84,11 +89,22 @@ func (suite *DatabaseHandlerTestSuite) SetupSuite() {
 		Price:     100,
 		ProductID: 1,
 	}
+	suite.discount = domain.NewDefaultDiscount(suite.products[0].ID)
 	suite.TestDatabaseHandler = NewTestDatabase()
 	result := suite.TestDatabaseHandler.DBHandler.DB.Create(suite.products)
 	if result.Error != nil {
 		log.Fatalln(result.Error)
 	}
+}
+
+func (suite *DatabaseHandlerTestSuite) TestUpdateProduct() {
+	updatedProduct := suite.products[0]
+	updatedProduct.Count = 400
+	err := suite.TestDatabaseHandler.DBHandler.UpdateProduct(&updatedProduct)
+	suite.Require().Nil(err)
+	product, err := suite.TestDatabaseHandler.DBHandler.FindProductById(updatedProduct.ID)
+	suite.Require().Nil(err)
+	suite.Require().Equal(updatedProduct.Count, product.Count)
 }
 
 func (suite *DatabaseHandlerTestSuite) TestCountProducts() {
@@ -124,9 +140,42 @@ func (suite *DatabaseHandlerTestSuite) TestInsertPurchase() {
 	suite.Require().Nil(err)
 	errorPurchase := suite.purchase
 	errorPurchase.ProductID = 562165
-	errorPurchase.ID = 2
+	*errorPurchase.ID = 2
 	err = suite.TestDatabaseHandler.DBHandler.InsertPurchase(&errorPurchase)
 	suite.Require().NotNil(err)
+}
+
+func (suite *DatabaseHandlerTestSuite) TestCountPurchasesByProductId() {
+	product := suite.products[1]
+	productPurchase := suite.purchase
+	productPurchase.ProductID = product.ID
+	countPurchases := rand.Intn(10) + 1
+	for i := 0; i < countPurchases; i++ {
+		productPurchase.ID = nil
+		err := suite.TestDatabaseHandler.DBHandler.InsertPurchase(&productPurchase)
+		suite.Require().Nil(err)
+	}
+	actualCountPurchases, err := suite.TestDatabaseHandler.DBHandler.CountPurchasesByProductId(product.ID)
+	suite.Require().Nil(err)
+	suite.Require().Equal(countPurchases, actualCountPurchases)
+}
+
+func (suite *DatabaseHandlerTestSuite) TestInsertDiscount() {
+	err := suite.TestDatabaseHandler.DBHandler.InsertDiscount(&suite.discount)
+	suite.Require().Nil(err)
+	errorDiscount := suite.discount
+	errorDiscount.ProductID = 562165
+	errorDiscount.ID = 1
+	err = suite.TestDatabaseHandler.DBHandler.InsertDiscount(&errorDiscount)
+	suite.Require().NotNil(err)
+}
+
+func (suite *DatabaseHandlerTestSuite) TestDeleteDiscount() {
+	err := suite.TestDatabaseHandler.DBHandler.DeleteDiscount(&suite.discount)
+	suite.Require().Nil(err)
+	expectedProduct, err := suite.TestDatabaseHandler.DBHandler.FindProductById(suite.discount.ProductID)
+	suite.Require().Nil(err)
+	suite.Require().Zero(expectedProduct.Discount.ID)
 }
 
 func (suite *DatabaseHandlerTestSuite) TearDownSuite() {
