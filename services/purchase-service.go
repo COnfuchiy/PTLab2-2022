@@ -11,7 +11,7 @@ type PurchaseService struct {
 }
 
 func NewPurchaseService(repository domain.IPurchaseRepository) domain.IPurchaseService {
-	return &PurchaseService{repository, 2}
+	return &PurchaseService{repository, 10}
 }
 
 func (service *PurchaseService) CreatePurchase(purchase *domain.Purchase) error {

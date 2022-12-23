@@ -5,6 +5,7 @@ type Product struct {
 	Name     string `json:"name"`
 	Count    int    `json:"count"`
 	Price    uint   `json:"price"`
+	NewPrice uint
 	Discount Discount
 }
 

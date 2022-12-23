@@ -42,7 +42,7 @@ func (controller ProductController) GetProducts(c *gin.Context) {
 				c.Data(http.StatusInternalServerError, "text/html; charset=utf-8", []byte(err.Error()))
 				return
 			}
-			products[i].Price = controller.discountService.GetPriceWithDiscount(products[i].Price, products[i].Discount.Percent)
+			products[i].NewPrice = controller.discountService.GetPriceWithDiscount(products[i].Price, products[i].Discount.Percent)
 		}
 	}
 

@@ -10,21 +10,29 @@
         <table>
             <tr>
                 <td><p>Наименование</p></td>
-                <td><p>Цена</p></td>
                 <td><p>Товара в магазине</p></td>
+                <td><p>Цена</p></td>
+                <td><p>Цена со скидкой</p></td>
                 <td><p>Скидка</p></td>
                 <td></td>
             </tr>
             {{ range .products }}
                 <tr class="product">
                     <td><p>{{ .Name }}</p></td>
-                    <td><p class="price">{{ .Price }}</p></td>
                     <td><p>{{ .Count }}</p></td>
+                    <td><p class="price">{{ .Price }}</p></td>
+                    <td>
+                        {{ if .Discount.Percent }}
+                            <p class="price">{{ .NewPrice }}</p>
+                        {{else}}
+                            -
+                        {{end}}
+                    </td>
                     <td><p class="discount">
                         {{ if .Discount.Percent }}
-                        {{ .Discount.Percent }}% до {{  printDate .Discount.EndDate }}
+                            {{ .Discount.Percent }}% до {{  printDate .Discount.EndDate }}
                         {{else}}
-                        -
+                            -
                         {{end}}
                     </p></td>
 
