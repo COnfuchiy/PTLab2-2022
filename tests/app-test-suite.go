@@ -241,12 +241,6 @@ func (suite *AppTestSuite) testInvalidInputCreatePurchase() {
 	suite.Require().Equal("Ошибка: ошибка обработки полей формы (strconv.ParseUint: parsing \""+suite.purchase.Person+"\": invalid syntax)!", errorText)
 }
 
-func (suite *AppTestSuite) testGetProductsWithDiscount() {
-	productWithDiscount := suite.products[0]
-	productWithDiscount.Discount = domain.NewDefaultDiscount(productWithDiscount.ID)
-	//productWithDiscount.
-}
-
 func (suite *AppTestSuite) fetchTestRequest(method, url string, body io.Reader) []byte {
 	request, err := http.NewRequest(method, url, body)
 	suite.Require().Nil(err)
